@@ -1,34 +1,30 @@
 package ru.kata.spring.boot_security.demo.configs;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@EnableWebSecurity
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
-    private final SuccessUserHandler successUserHandler;
-    private final UserDetailsService userDetailsService;
+public class WebSecurityConfig {
 
-    public WebSecurityConfig(SuccessUserHandler successUserHandler, UserDetailsService userDetailsService) {
+    private final SuccessUserHandler successUserHandler;
+
+    public WebSecurityConfig(SuccessUserHandler successUserHandler) {
         this.successUserHandler = successUserHandler;
-        this.userDetailsService = userDetailsService;
     }
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
-                .csrf(Customizer.withDefaults()) // можно включить позже, если формы настроены
+                .csrf().disable()
                 .authorizeRequests()
-                .antMatchers("/", "/login", "/css/**", "/js/**").permitAll()
-                .antMatchers("/user/**").hasAnyRole("USER", "ADMIN")
+                .antMatchers("/api/**").authenticated() // REST доступен авторизованным
                 .antMatchers("/admin/**").hasRole("ADMIN")
+                .antMatchers("/user/**").hasAnyRole("USER", "ADMIN")
+                .antMatchers("/", "/login", "/error").permitAll()
                 .anyRequest().authenticated()
                 .and()
                 .formLogin()
@@ -38,21 +34,16 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .and()
                 .logout()
                 .logoutUrl("/logout")
-                .logoutSuccessUrl("/login?logout")
+                .logoutSuccessUrl("/login")
                 .permitAll()
                 .and()
                 .exceptionHandling()
-                .accessDeniedPage("/access-denied");
+                // Для REST-запросов возвращаем 401/403 вместо редиректа
+                .authenticationEntryPoint((request, response, authException) ->
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                .accessDeniedHandler((request, response, accessDeniedException) ->
+                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"));
+
+        return http.build();
     }
-    // Настройка аутентификации через UserDetailsService
-    @Autowired
-    public void configureGlobal(AuthenticationManagerBuilder auth,
-                                UserDetailsService userDetailsService,
-                                PasswordEncoder passwordEncoder) throws Exception {
-        auth.userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder);
-    }
-
-
-
 }

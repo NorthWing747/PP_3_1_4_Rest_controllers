@@ -65,12 +65,10 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         existingUser.setEmail(user.getEmail());
         existingUser.setRoles(user.getRoles());
 
-
         // обновляем роли
         setRolesForUser(existingUser, roleIds);
 
         userRepository.save(existingUser);
-
     }
 
     private void setRolesForUser(User user, List<Long> roleIds) {
@@ -86,5 +84,42 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     public void delete(Long id) {
         userRepository.deleteById(id);
+    }
+
+    // Методы для REST CONTROLLER
+
+    @Override
+    public void save(User user) {
+        // Если у пользователя уже есть роли - используем их
+        // Если нет - назначаем роль по умолчанию (косяк, надо выбросить исключение)
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            Role defaultRole = roleRepository.findByName("ROLE_USER")
+                    .orElseThrow(() -> new RuntimeException("Default role ROLE_USER not found"));
+            user.setRoles(Set.of(defaultRole));
+        }
+        userRepository.save(user);
+    }
+
+    @Override
+    public void updateUser(User user) {
+        User existingUser = getById(user.getId());
+
+        existingUser.setName(user.getName());
+        existingUser.setSurname(user.getSurname());
+        existingUser.setAge(user.getAge());
+        existingUser.setUsername(user.getUsername());
+        existingUser.setEmail(user.getEmail());
+
+        // Сохраняем существующие роли пользователя
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            existingUser.setRoles(user.getRoles());
+        }
+
+        // Если пароль указан - обновляем его
+        if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            existingUser.setPassword(user.getPassword());
+        }
+
+        userRepository.save(existingUser);
     }
 }

@@ -22,4 +22,9 @@ public class RoleService {
     public Role save(Role role) {
         return roleRepository.save(role);
     }
+
+    // Метод для поиска роли по имени
+    public Role getRoleByName(String name) {
+        return roleRepository.findByName(name).orElse(null);
+    }
 }

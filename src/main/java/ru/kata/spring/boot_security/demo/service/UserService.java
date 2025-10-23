@@ -12,4 +12,8 @@ public interface UserService {
     void updateUser(User user, List<Long> roleIds);
     void delete(Long id);
     User findByUsername(String username);
+
+    // for REST
+    void save(User user);
+    void updateUser(User user);
 }
