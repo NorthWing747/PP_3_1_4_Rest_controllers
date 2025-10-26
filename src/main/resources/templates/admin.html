@@ -1,527 +1,219 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity5"
-      lang="ru">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <title>Admin panel</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .sidebar {
-            width: 220px;
-            min-height: 100vh;
-            background-color: #ffffff;
-            border-right: 1px solid #dee2e6;
-        }
-        .sidebar .nav-link.active {
-            background-color: #0d6efd;
-            color: white !important;
-        }
-        .sidebar .nav-link {
-            color: #333;
-            font-weight: 500;
-        }
-        .content {
-            padding: 20px;
-        }
-        .navbar-dark {
-            background-color: #343a40;
-        }
-        .table-hover tbody tr:hover {
-            background-color: rgba(13, 110, 253, 0.075);
-        }
-        .badge-user {
-            background: linear-gradient(45deg, #007bff, #0056b3);
-        }
-        .badge-admin {
-            background: linear-gradient(45deg, #dc3545, #c82333);
-        }
+        /* немного косметики, чтобы формы были как на скриншоте */
+        .form-narrow { max-width: 520px; margin: 0 auto; }
+        .table thead th { white-space: nowrap; }
+        .sidebar { min-height: 100vh; }
     </style>
 </head>
+<body class="bg-light">
 
-<body>
-<!-- Верхняя панель -->
-<nav class="navbar navbar-dark sticky-top">
+<!-- Top bar -->
+<nav class="navbar navbar-dark bg-dark">
     <div class="container-fluid">
-        <span class="navbar-text text-white" id="currentUserInfo">
-            <!-- Загрузится через JS -->
-        </span>
-        <form th:action="@{/logout}" method="post" class="mb-0">
-            <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+    <span id="navUserInfo" class="navbar-text">
+      <!-- Пример: admin@mail.ru with roles: ADMIN USER -->
+    </span>
+        <form action="/logout" method="post" class="m-0">
+            <button class="btn btn-outline-light btn-sm" type="submit">Logout</button>
         </form>
     </div>
 </nav>
 
 <div class="container-fluid">
     <div class="row">
-        <!-- Боковая панель -->
-        <nav class="col-md-2 d-md-block sidebar p-3">
-            <div class="nav flex-column">
-                <a class="nav-link active mb-1" href="/admin">Admin</a>
-                <a class="nav-link" href="/user">User</a>
-            </div>
-        </nav>
-
-        <!-- Основной контент -->
-        <main class="col-md-10 ms-sm-auto content">
-            <h2 class="mb-4">Admin panel</h2>
-
-            <!-- Таб-панель -->
-            <ul class="nav nav-tabs mb-3">
+        <!-- Sidebar -->
+        <aside class="col-2 sidebar bg-white border-end pt-3">
+            <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#" onclick="loadUsers()">Users table</a>
+                    <a class="nav-link active" href="/admin">Admin</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" onclick="showAddUserForm()">New User</a>
+                    <a class="nav-link" href="/user">User</a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main -->
+        <main class="col-10 p-4">
+            <h2 class="mb-3">Admin panel</h2>
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <a id="users-tab-btn" class="nav-link active" href="#">Users table</a>
+                </li>
+                <li class="nav-item">
+                    <a id="new-user-tab-btn" class="nav-link" href="#">New User</a>
                 </li>
             </ul>
 
-            <!-- Таблица пользователей -->
-            <div id="usersTableSection">
+            <!-- Users table -->
+            <section id="usersTableSection" class="mt-3">
                 <div class="card">
+                    <div class="card-header fw-semibold">All users</div>
                     <div class="card-body p-0">
                         <table class="table table-hover table-striped mb-0">
                             <thead class="table-light">
                             <tr>
-                                <th>ID</th>
+                                <th style="width:70px;">ID</th>
                                 <th>First Name</th>
                                 <th>Last Name</th>
-                                <th>Age</th>
+                                <th style="width:90px;">Age</th>
                                 <th>Email</th>
-                                <th>Role</th>
-                                <th class="text-center">Edit</th>
-                                <th class="text-center">Delete</th>
+                                <th style="min-width:150px;">Role</th>
+                                <th style="width:90px;">Edit</th>
+                                <th style="width:90px;">Delete</th>
                             </tr>
                             </thead>
-                            <tbody id="usersTableBody">
-                            <!-- Данные загружаются через JS -->
-                            </tbody>
+                            <tbody id="usersTableBody"></tbody>
                         </table>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Форма добавления пользователя -->
-            <div id="addUserSection" style="display: none;">
-                <div class="card mx-auto" style="max-width: 500px;"> <!-- Добавлен mx-auto -->
+            <!-- New user -->
+            <section id="newUserSection" class="mt-3" style="display:none;">
+                <div class="card">
+                    <div class="card-header fw-semibold">Add new user</div>
                     <div class="card-body">
-                        <form id="addUserForm">
+                        <form id="addUserForm" class="form-narrow">
                             <div class="mb-3">
-                                <label class="form-label">Логин</label>
-                                <input type="text" class="form-control" id="addUsername" name="username" required>
+                                <label for="addName" class="form-label text-center w-100 fw-semibold">First name</label>
+                                <input id="addName" type="text" class="form-control bg-warning-subtle" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Email</label>
-                                <input type="email" class="form-control" id="addEmail" name="email" required>
+                                <label for="addSurname" class="form-label text-center w-100 fw-semibold">Last name</label>
+                                <input id="addSurname" type="text" class="form-control bg-warning-subtle" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Имя</label>
-                                <input type="text" class="form-control" id="addName" name="name" required>
+                                <label for="addAge" class="form-label text-center w-100 fw-semibold">Age</label>
+                                <input id="addAge" type="number" min="0" class="form-control" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Фамилия</label>
-                                <input type="text" class="form-control" id="addSurname" name="surname" required>
+                                <label for="addEmail" class="form-label text-center w-100 fw-semibold">Email</label>
+                                <input id="addEmail" type="email" class="form-control bg-warning-subtle" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Возраст</label>
-                                <input type="number" class="form-control" id="addAge" name="age" min="1" max="150" required>
+                                <label for="addPassword" class="form-label text-center w-100 fw-semibold">Password</label>
+                                <input id="addPassword" type="password" class="form-control" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Пароль</label>
-                                <input type="password" class="form-control" id="addPassword" name="password" required>
+                                <label for="addRoles" class="form-label text-center w-100 fw-semibold">Role</label>
+                                <select id="addRoles" class="form-select" multiple size="2" required></select>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Роли</label>
-                                <select class="form-select" id="addRoles" name="roleIds" multiple required>
-                                    <!-- Роли загружаются через JS -->
-                                </select>
-                            </div>
-                            <div class="mt-3">
-                                <button type="submit" class="btn btn-success">Добавить пользователя</button>
-                                <button type="button" class="btn btn-secondary" onclick="showUsersTable()">Отмена</button>
+                            <div class="text-center">
+                                <button class="btn btn-success" type="submit">Add new user</button>
                             </div>
                         </form>
                     </div>
                 </div>
-            </div>
+            </section>
+
         </main>
     </div>
 </div>
 
-<!-- ======== МОДАЛЬНОЕ ОКНО "РЕДАКТИРОВАТЬ" ======== -->
-<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+<!-- Edit Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <form id="editUserForm" class="modal-content form-narrow">
             <div class="modal-header">
-                <h5 class="modal-title" id="editUserModalLabel">Редактировать пользователя</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <h5 class="modal-title">Edit user</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            <form id="editUserForm">
-                <div class="modal-body">
-                    <input type="hidden" name="id" id="editId">
-<!--                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>-->
-
-                    <div class="mb-3">
-                        <label class="form-label">Логин</label>
-                        <input type="text" class="form-control" id="editUsername" name="username" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Имя</label>
-                        <input type="text" class="form-control" id="editName" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Фамилия</label>
-                        <input type="text" class="form-control" id="editSurname" name="surname" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Возраст</label>
-                        <input type="number" class="form-control" id="editAge" name="age" min="1" max="150">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" class="form-control" id="editEmail" name="email" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Пароль</label>
-                        <input type="password" class="form-control" id="editPassword" name="password"
-                               placeholder="Оставьте пустым, если не меняете">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Роли</label>
-                        <select class="form-select" id="editRoleSelect" multiple required>
-                            <!-- Роли загружаются через JS -->
-                        </select>
-                    </div>
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                    <button type="submit" class="btn btn-primary">Изменить</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ======== МОДАЛЬНОЕ ОКНО "УДАЛИТЬ" ======== -->
-<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Удалить пользователя</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
             <div class="modal-body">
-                <input type="hidden" id="deleteUserId">
                 <div class="mb-3">
-                    <label class="form-label">ID</label>
-                    <input type="text" class="form-control" id="deleteUserInfoId" readonly>
+                    <label for="editId" class="form-label text-center w-100 fw-semibold">ID</label>
+                    <input id="editId" type="text" class="form-control" readonly>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Имя</label>
-                    <input type="text" class="form-control" id="deleteUserInfoName" readonly>
+                    <label for="editName" class="form-label text-center w-100 fw-semibold">First name</label>
+                    <input id="editName" type="text" class="form-control" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Фамилия</label>
-                    <input type="text" class="form-control" id="deleteUserInfoSurname" readonly>
+                    <label for="editSurname" class="form-label text-center w-100 fw-semibold">Last name</label>
+                    <input id="editSurname" type="text" class="form-control" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Возраст</label>
-                    <input type="number" class="form-control" id="deleteUserInfoAge" readonly>
+                    <label for="editAge" class="form-label text-center w-100 fw-semibold">Age</label>
+                    <input id="editAge" type="number" class="form-control" min="0" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" class="form-control" id="deleteUserInfoEmail" readonly>
+                    <label for="editEmail" class="form-label text-center w-100 fw-semibold">Email</label>
+                    <input id="editEmail" type="email" class="form-control" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Роль</label>
-                    <select class="form-select" id="deleteUserInfoRoles" multiple disabled>
-                    </select>
+                    <label for="editPassword" class="form-label text-center w-100 fw-semibold">Password</label>
+                    <input id="editPassword" type="password" class="form-control" placeholder="leave blank to keep">
+                </div>
+                <div class="mb-3">
+                    <label for="editRoleSelect" class="form-label text-center w-100 fw-semibold">Role</label>
+                    <select id="editRoleSelect" class="form-select" multiple size="2"></select>
                 </div>
             </div>
+
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                <button type="button" class="btn btn-danger" onclick="confirmDeleteUser()">Удалить</button>
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" type="submit">Edit</button>
             </div>
-        </div>
+        </form>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    let allRoles = [];
-    let allUsers = [];
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="deleteUserForm" class="modal-content form-narrow">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete user</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
 
-    // ========== ЗАГРУЗКА ДАННЫХ ==========
-    async function loadUsers() {
-        try {
-            const response = await fetch('/api/users');
-            allUsers = await response.json();
-            renderUsersTable();
-            showUsersTable();
-        } catch (error) {
-            console.error('Error loading users:', error);
-            alert('Ошибка загрузки пользователей');
-        }
-    }
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="delId" class="form-label text-center w-100 fw-semibold">ID</label>
+                    <input id="delId" type="text" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="delName" class="form-label text-center w-100 fw-semibold">First name</label>
+                    <input id="delName" type="text" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="delSurname" class="form-label text-center w-100 fw-semibold">Last name</label>
+                    <input id="delSurname" type="text" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="delAge" class="form-label text-center w-100 fw-semibold">Age</label>
+                    <input id="delAge" type="number" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="delEmail" class="form-label text-center w-100 fw-semibold">Email</label>
+                    <input id="delEmail" type="email" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-center w-100 fw-semibold">Role</label>
+                    <select id="delRoles" class="form-select" multiple size="2" disabled></select>
+                </div>
+            </div>
 
-    async function loadRoles() {
-        try {
-            const response = await fetch('/api/roles');
-            allRoles = await response.json();
-            renderRoleSelects();
-        } catch (error) {
-            console.error('Error loading roles:', error);
-            alert('Ошибка загрузки ролей');
-        }
-    }
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Close</button>
+                <button id="confirmDeleteBtn" class="btn btn-danger" type="submit">Delete</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-    async function loadCurrentUserInfo() {
-        try {
-            const response = await fetch('/api/users/current');
-            if (response.ok) {
-                const user = await response.json();
-                const roles = user.roles.map(r => r.name.replace('ROLE_', '')).join(', ');
-                document.getElementById('currentUserInfo').innerHTML =
-                    `${user.email} (${roles})`;
-            }
-        } catch (error) {
-            console.error('Error loading current user:', error);
-        }
-    }
-
-    // ========== ОТОБРАЖЕНИЕ ДАННЫХ ==========
-    function renderUsersTable() {
-        const tbody = document.getElementById('usersTableBody');
-        tbody.innerHTML = '';
-
-        allUsers.forEach(user => {
-            const rolesHtml = user.roles.map(role =>
-                `<span class="badge bg-secondary me-1">${role.name.replace('ROLE_', '')}</span>`
-            ).join('');
-
-            tbody.innerHTML += `
-                <tr>
-                    <td>${user.id}</td>
-                    <td>${user.name}</td>
-                    <td>${user.surname}</td>
-                    <td>${user.age}</td>
-                    <td>${user.email}</td>
-                    <td>${rolesHtml}</td>
-                    <td class="text-center">
-                        <button class="btn btn-info btn-sm"
-                                onclick="openEditModal(${user.id})">
-                            Edit
-                        </button>
-                    </td>
-                    <td class="text-center">
-                        <button class="btn btn-danger btn-sm"
-                                onclick="openDeleteModal(${user.id})">
-                            Delete
-                        </button>
-                    </td>
-                </tr>`;
-        });
-    }
-
-    function renderRoleSelects() {
-        const addRolesSelect = document.getElementById('addRoles');
-        const editRoleSelect = document.getElementById('editRoleSelect');
-
-        const rolesHtml = allRoles.map(role =>
-            `<option value="${role.id}">${role.name.replace('ROLE_', '')}</option>`
-        ).join('');
-
-        addRolesSelect.innerHTML = rolesHtml;
-        editRoleSelect.innerHTML = rolesHtml;
-    }
-
-    // ========== УПРАВЛЕНИЕ ФОРМАМИ ==========
-    // Добавление пользователя
-    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const user = {
-            username: document.getElementById('addUsername').value,
-            name: document.getElementById('addName').value,
-            surname: document.getElementById('addSurname').value,
-            age: parseInt(document.getElementById('addAge').value),
-            email: document.getElementById('addEmail').value,
-            password: document.getElementById('addPassword').value,
-            roles: Array.from(document.getElementById('addRoles').selectedOptions)
-                .map(option => ({ id: parseInt(option.value) }))
-        };
-
-        try {
-            const response = await fetch('/api/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(user)
-            });
-
-            if (response.ok) {
-                e.target.reset();
-                await loadUsers();
-                showSuccess('Пользователь успешно добавлен');
-            } else {
-                showError('Ошибка при добавлении пользователя');
-            }
-        } catch (error) {
-            console.error('Error adding user:', error);
-            showError('Ошибка при добавлении пользователя');
-        }
-    });
-
-    // Редактирование пользователя
-    async function openEditModal(userId) {
-        try {
-            const user = allUsers.find(u => u.id === userId);
-            if (!user) return;
-
-            document.getElementById('editId').value = user.id;
-            document.getElementById('editUsername').value = user.username;
-            document.getElementById('editName').value = user.name;
-            document.getElementById('editSurname').value = user.surname;
-            document.getElementById('editAge').value = user.age;
-            document.getElementById('editEmail').value = user.email;
-
-            // Устанавливаем выбранные роли
-            const select = document.getElementById('editRoleSelect');
-            Array.from(select.options).forEach(option => {
-                option.selected = user.roles.some(role => role.id === parseInt(option.value));
-            });
-
-            new bootstrap.Modal(document.getElementById('editUserModal')).show();
-        } catch (error) {
-            console.error('Error opening edit modal:', error);
-            showError('Ошибка открытия формы редактирования');
-        }
-    }
-
-    document.getElementById('editUserForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const userId = document.getElementById('editId').value;
-        const user = {
-            id: parseInt(userId),
-            username: document.getElementById('editUsername').value,
-            name: document.getElementById('editName').value,
-            surname: document.getElementById('editSurname').value,
-            age: parseInt(document.getElementById('editAge').value),
-            email: document.getElementById('editEmail').value,
-            password: document.getElementById('editPassword').value || null,
-            roles: Array.from(document.getElementById('editRoleSelect').selectedOptions)
-                .map(option => ({ id: parseInt(option.value) }))
-        };
-
-        try {
-            const response = await fetch(`/api/users/${userId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(user)
-            });
-
-            if (response.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
-                await loadUsers();
-                showSuccess('Пользователь успешно обновлен');
-            } else {
-                showError('Ошибка при обновлении пользователя');
-            }
-        } catch (error) {
-            console.error('Error updating user:', error);
-            showError('Ошибка при обновлении пользователя');
-        }
-    });
-
-    // Удаление пользователя
-    async function openDeleteModal(userId) {
-        try {
-            const user = allUsers.find(u => u.id === userId);
-            if (!user) return;
-
-            document.getElementById('deleteUserId').value = user.id;
-            document.getElementById('deleteUserInfoId').value = user.id;
-            document.getElementById('deleteUserInfoName').value = user.name;
-            document.getElementById('deleteUserInfoSurname').value = user.surname;
-            document.getElementById('deleteUserInfoAge').value = user.age;
-            document.getElementById('deleteUserInfoEmail').value = user.email;
-
-            // Заполняем роли для отображения
-            const rolesSelect = document.getElementById('deleteUserInfoRoles');
-            rolesSelect.innerHTML = user.roles.map(role =>
-                `<option>${role.name.replace('ROLE_', '')}</option>`
-            ).join('');
-
-            new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
-        } catch (error) {
-            console.error('Error opening delete modal:', error);
-            showError('Ошибка открытия формы удаления');
-        }
-    }
-
-    async function confirmDeleteUser() {
-        const userId = document.getElementById('deleteUserId').value;
-
-        try {
-            const response = await fetch(`/api/users/${userId}`, {
-                method: 'DELETE'
-            });
-
-            if (response.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('deleteUserModal')).hide();
-                await loadUsers();
-                showSuccess('Пользователь успешно удален');
-            } else {
-                showError('Ошибка при удалении пользователя');
-            }
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            showError('Ошибка при удалении пользователя');
-        }
-    }
-
-    // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
-    function showUsersTable() {
-        document.getElementById('usersTableSection').style.display = 'block';
-        document.getElementById('addUserSection').style.display = 'none';
-
-        // Обновляем активную вкладку
-        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-        document.querySelector('.nav-link[onclick="loadUsers()"]').classList.add('active');
-    }
-
-    function showAddUserForm() {
-        document.getElementById('usersTableSection').style.display = 'none';
-        document.getElementById('addUserSection').style.display = 'block';
-
-        // Обновляем активную вкладку
-        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-        document.querySelector('.nav-link[onclick="showAddUserForm()"]').classList.add('active');
-    }
-
-    function showSuccess(message) {
-        alert(message); // Можно заменить на toast уведомления
-    }
-
-    function showError(message) {
-        alert(message); // Можно заменить на toast уведомления
-    }
-
-    // ========== ИНИЦИАЛИЗАЦИЯ ==========
-    document.addEventListener('DOMContentLoaded', async () => {
-        await loadRoles();
-        await loadUsers();
-        await loadCurrentUserInfo();
-    });
-</script>
+<!-- scripts -->
+<script type="module" src="/js/pages/admin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

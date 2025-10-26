@@ -1,20 +1,19 @@
 package ru.kata.spring.boot_security.demo.rest;
 
-//import org.apache.tomcat.util.net.openssl.ciphers.Authentication;
-import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ru.kata.spring.boot_security.demo.entity.Role;
 import ru.kata.spring.boot_security.demo.entity.User;
 import ru.kata.spring.boot_security.demo.service.RoleService;
 import ru.kata.spring.boot_security.demo.service.UserService;
 
-import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -34,30 +33,27 @@ public class UserRestController {
         return userService.getAll();
     }
 
-    // Получить пользователя по ID
+    // Получить пользователя по ID (без if и проверок на null)
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        User user = userService.getById(id);
-        return user != null
-                ? ResponseEntity.ok(user)
-                : ResponseEntity.notFound().build();
+        return Optional.ofNullable(userService.getById(id))
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // Создать пользователя
+    // Создать пользователя (без if и проверок на null)
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user) {
-        Set<Role> roles = resolveRoles(user);
-        user.setRoles(roles);
+        user.setRoles(resolveRoles(user));
         userService.save(user);
         return new ResponseEntity<>(user, HttpStatus.CREATED);
     }
 
-    // Обновить пользователя
+    // Обновить пользователя (без if и проверок на null)
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
         user.setId(id);
-        Set<Role> roles = resolveRoles(user);
-        user.setRoles(roles);
+        user.setRoles(resolveRoles(user));
         userService.updateUser(user);
         return ResponseEntity.ok(user);
     }
@@ -69,28 +65,20 @@ public class UserRestController {
         return ResponseEntity.noContent().build();
     }
 
-    // ===== ВСПОМОГАТЕЛЬНЫЙ МЕТОД =====
-    private Set<Role> resolveRoles(User user) {
-        Set<Role> resolvedRoles = new HashSet<>();
-
-        if (user.getRoles() == null || user.getRoles().isEmpty()) {
-            return resolvedRoles;
-        }
-
-        for (Role role : user.getRoles()) {
-            Role existingRole = roleService.getRoleByName(role.getName());
-            if (existingRole != null) {
-                resolvedRoles.add(existingRole);
-            }
-        }
-
-        return resolvedRoles;
-    }
+    // Текущий пользователь (Spring сам внедрит Authentication)
     @GetMapping("/current")
     public ResponseEntity<User> getCurrentUser(Authentication authentication) {
-        // Spring автоматически внедряет Authentication
-        String username = authentication.getName();
-        User user = userService.findByUsername(username);
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(userService.findByUsername(authentication.getName()));
+    }
+
+    // ===== Упрощённое сопоставление ролей без if / null-checks =====
+    private Set<Role> resolveRoles(User user) {
+        return Optional.ofNullable(user.getRoles())
+                .orElseGet(Set::of)                          // пустое множество, если ролей нет
+                .stream()
+                .map(Role::getName)                          // берём имена ролей
+                .map(roleService::getRoleByName)             // резолвим из БД
+                .filter(Objects::nonNull)                    // отбрасываем не найденные
+                .collect(Collectors.toSet());
     }
 }

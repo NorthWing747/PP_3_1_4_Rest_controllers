@@ -1,125 +1,90 @@
 package ru.kata.spring.boot_security.demo.service;
 
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.kata.spring.boot_security.demo.entity.Role;
 import ru.kata.spring.boot_security.demo.entity.User;
-import ru.kata.spring.boot_security.demo.repository.RoleRepository;
 import ru.kata.spring.boot_security.demo.repository.UserRepository;
 
-import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
-public class UserServiceImpl implements UserService, UserDetailsService {
+public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
-
+    private final PasswordEncoder passwordEncoder;
+    private final RoleService roleService;
 
     public UserServiceImpl(UserRepository userRepository,
-                           RoleRepository roleRepository) {
+                           PasswordEncoder passwordEncoder,
+                           RoleService roleService) {
         this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-
-    }
-    @Override
-    public User findByUsername(String username) {
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-    }
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+        this.passwordEncoder = passwordEncoder;
+        this.roleService = roleService;
     }
 
+    @Override
     public List<User> getAll() {
         return userRepository.findAll();
     }
-    @Transactional
+
+    @Override
     public User getById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow();
     }
-
-    public void save(User user, List<Long> roleIds) {
-        setRolesForUser(user, roleIds);
-
-        userRepository.save(user);
-    }
-
-    public void updateUser(User user, List<Long> roleIds) {
-        User existingUser = getById(user.getId());
-
-        existingUser.setName(user.getName());
-        existingUser.setSurname(user.getSurname());
-        existingUser.setAge(user.getAge());
-        existingUser.setUsername(user.getUsername());
-        existingUser.setEmail(user.getEmail());
-        existingUser.setRoles(user.getRoles());
-
-        // обновляем роли
-        setRolesForUser(existingUser, roleIds);
-
-        userRepository.save(existingUser);
-    }
-
-    private void setRolesForUser(User user, List<Long> roleIds) {
-        Set<Role> roles = new HashSet<>();
-        if (roleIds != null && !roleIds.isEmpty()) {
-            roles.addAll(roleRepository.findAllById(roleIds));
-        } else {
-            roles.add(roleRepository.findByName("ROLE_USER")
-                    .orElseThrow(() -> new RuntimeException("Default role not found")));
-        }
-        user.setRoles(roles);
-    }
-
-    public void delete(Long id) {
-        userRepository.deleteById(id);
-    }
-
-    // Методы для REST CONTROLLER
 
     @Override
     public void save(User user) {
-        // Если у пользователя уже есть роли - используем их
-        // Если нет - назначаем роль по умолчанию (косяк, надо выбросить исключение)
-        if (user.getRoles() == null || user.getRoles().isEmpty()) {
-            Role defaultRole = roleRepository.findByName("ROLE_USER")
-                    .orElseThrow(() -> new RuntimeException("Default role ROLE_USER not found"));
-            user.setRoles(Set.of(defaultRole));
+        // шифруем пароль
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        // при желании — резолвим роли по имени (если приходит [{name:"ROLE_USER"}])
+        if (user.getRoles() != null) {
+            user.setRoles(resolveRoles(user.getRoles()));
         }
         userRepository.save(user);
     }
 
     @Override
     public void updateUser(User user) {
-        User existingUser = getById(user.getId());
+        User existing = userRepository.findById(user.getId())
+                .orElseThrow();
 
-        existingUser.setName(user.getName());
-        existingUser.setSurname(user.getSurname());
-        existingUser.setAge(user.getAge());
-        existingUser.setUsername(user.getUsername());
-        existingUser.setEmail(user.getEmail());
+        existing.setUsername(user.getUsername());
+        existing.setEmail(user.getEmail());
 
-        // Сохраняем существующие роли пользователя
-        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-            existingUser.setRoles(user.getRoles());
+        if (user.getRoles() != null) {
+            existing.setRoles(resolveRoles(user.getRoles()));
         }
 
-        // Если пароль указан - обновляем его
         if (user.getPassword() != null && !user.getPassword().isBlank()) {
-            existingUser.setPassword(user.getPassword());
+            existing.setPassword(passwordEncoder.encode(user.getPassword()));
         }
 
-        userRepository.save(existingUser);
+        userRepository.save(existing);
+    }
+
+    @Override
+    public void delete(Long id) {
+          userRepository.deleteById(id);
+    }
+
+    @Override
+    public User findByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow();
+    }
+
+    private Set<Role> resolveRoles(Set<Role> incoming) {
+        return incoming.stream()
+                .map(Role::getName)
+                .map(roleService::getRoleByName)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 }
