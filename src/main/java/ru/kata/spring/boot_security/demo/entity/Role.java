@@ -30,17 +30,21 @@ public class Role implements GrantedAuthority {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
+    // === equals/hashCode строго по id ===
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Role role = (Role) o;
-        return Objects.equals(name, role.name);
+        if (!(o instanceof Role)) return false;
+        Role that = (Role) o;
+        // у новых (несохранённых) сущностей id = null => считаем их неравными
+        return id != null && id.equals(that.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name);
+        // у Hibernate есть рекомендация для прокси — фиксированный hashCode,
+        // либо Objects.hash(id) если id гарантированно не null на персистентных
+        return 31;
     }
 
     @Override

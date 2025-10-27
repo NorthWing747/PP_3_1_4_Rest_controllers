@@ -1,5 +1,6 @@
 package ru.kata.spring.boot_security.demo.service;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import ru.kata.spring.boot_security.demo.entity.Role;
 import ru.kata.spring.boot_security.demo.repository.RoleRepository;
@@ -21,6 +22,11 @@ public class RoleService {
 
     public Role save(Role role) {
         return roleRepository.save(role);
+    }
+
+    @Transactional(readOnly = true)
+    public Role getById(Long id) {
+        return roleRepository.findById(id).orElse(null);
     }
 
     // Метод для поиска роли по имени

@@ -8,3 +8,6 @@ export function toRoleNames(selectedOptions) {
         return { name };
     });
 }
+export function toRoleIds(selectedOptions) {
+    return Array.from(selectedOptions).map(o => ({ id: Number(o.value) }));
+}

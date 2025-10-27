@@ -1,9 +1,28 @@
 import { fetchUsers, fetchRoles, createUser, updateUser, deleteUserById } from '../api/users.js';
-import { roleLabel, toRoleNames } from '../services/roles.js';
+// import { roleLabel, toRoleNames } from '../services/roles.js';
+import { roleLabel, toRoleIds, toRoleNames } from '../services/roles.js';
 import { openEditModal, closeEditModal } from '../ui/modals.js';
 
 let ALL_USERS = [];
 let ALL_ROLES = [];
+
+function toRoleIdsFromSelect(selectEl) {
+    return Array.from(selectEl.selectedOptions).map(o => ({ id: Number(o.value) }));
+}
+
+// создание
+const addSel = document.getElementById('addRoles');
+const newUser = {
+    // ...
+    roles: toRoleIdsFromSelect(addSel)
+};
+
+// редактирование
+const editSel = document.getElementById('editRoleSelect');
+const payload = {
+    // ...
+    roles: toRoleIdsFromSelect(editSel)
+};
 
 function renderUsers() {
     const tbody = document.getElementById('usersTableBody');
@@ -60,6 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showAddUserForm();
     });
 
+
     document.getElementById('usersTableBody').addEventListener('click', async (e) => {
         const idEdit = e.target.dataset.edit;
         const idDel = e.target.dataset.del;
@@ -78,12 +98,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('addUserForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const user = {
+            username: document.getElementById('addUsername').value.trim(), // <–– ДОБАВЛЕНО!
             name: document.getElementById('addName').value.trim(),
             surname: document.getElementById('addSurname').value.trim(),
-            age: +document.getElementById('addAge').value,
+            age: Number(document.getElementById('addAge').value),
             email: document.getElementById('addEmail').value.trim(),
             password: document.getElementById('addPassword').value,
-            roles: toRoleNames(document.getElementById('addRoles').selectedOptions)
+            // roles: toRoleNames(document.getElementById('addRoles').selectedOptions)
+            roles: toRoleIds(document.getElementById('addRoles').selectedOptions)
         };
 
         await createUser(user);
@@ -92,3 +114,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.target.reset();
     });
 });
+
+document.getElementById('editUserForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const id = Number(document.getElementById('editId').value);
+    const payload = {
+        id,
+        username: document.getElementById('editUsername').value.trim(),
+        name:     document.getElementById('editName').value.trim(),
+        surname:  document.getElementById('editSurname').value.trim(),
+        age:      Number(document.getElementById('editAge').value),
+        email:    document.getElementById('editEmail').value.trim(),
+        password: document.getElementById('editPassword').value, // пустая строка = не менять
+        roles:    toRoleIds(document.getElementById('editRoleSelect').selectedOptions)
+    };
+
+    const res = await updateUser(payload); // у тебя уже импортирован updateUser
+    if (!res.ok) {
+        console.error('Update failed:', res.status, await res.text());
+        alert('Ошибка сохранения пользователя');
+        return;
+    }
+
+    // закрыть модалку и обновить таблицу
+    closeEditModal();
+    await reloadAndRender();
+});
+
