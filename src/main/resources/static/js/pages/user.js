@@ -2,7 +2,7 @@
 
 async function loadUserProfile() {
     try {
-        const response = await fetch('/api/users/current');
+        const response = await fetch('/api/user/current');
 
         if (response.status === 401) {
             // не авторизован — отправляем на логин

@@ -30,23 +30,11 @@ export function openEditModal(user, allRoles) {
         .map(r => `<option value="${r.id}">${(r.name||'').replace('ROLE_','')}</option>`)
         .join('');
 
-    // const currentIds = new Set((user.roles || []).map(r => Number(r.id)));
-    // Array.from(roleSelect.options).forEach(o => o.selected = currentIds.has(Number(o.value)));
 
     const currentIds = new Set((user.roles || []).map(r => Number(r.id)));
     Array.from(roleSelect.options).forEach(o => {
         o.selected = currentIds.has(Number(o.value));
     });
-
-    // const roleSelect = get('#editRoleSelect');
-    // roleSelect.innerHTML = (allRoles || [])
-    //     .map(r => `<option value="${r.id}">${(r.name || '').replace('ROLE_', '')}</option>`)
-    //     .join('');
-    //
-    // const currentIds = new Set((user.roles || []).map(r => Number(r.id)));
-    // Array.from(roleSelect.options).forEach(o => {
-    //     o.selected = currentIds.has(Number(o.value));
-    // });
 
     // показать модалку
     bootstrap.Modal.getOrCreateInstance(modalEl).show();

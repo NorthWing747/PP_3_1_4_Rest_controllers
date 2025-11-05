@@ -30,55 +30,26 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   DaoAuthenticationProvider authProvider) throws Exception {
-
+    SecurityFilterChain security(HttpSecurity http) throws Exception {
         http
-                // CSRF: игнорируем только REST (RequestMatcher вместо строки)
-                .csrf(csrf -> csrf.ignoringRequestMatchers(
-                        new AntPathRequestMatcher("/api/**")
-                ))
-
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                 .authorizeHttpRequests(auth -> auth
-                        // permitAll для статики и публичных страниц
-                        .requestMatchers(
-                                new AntPathRequestMatcher("/"),
-                                new AntPathRequestMatcher("/login"),
-                                new AntPathRequestMatcher("/error"),
-                                new AntPathRequestMatcher("/css/**"),
-                                new AntPathRequestMatcher("/js/**"),
-                                new AntPathRequestMatcher("/images/**")
-                        ).permitAll()
-
-                        // защита API и ролей
-                        .requestMatchers(new AntPathRequestMatcher("/api/**")).authenticated()
-                        .requestMatchers(new AntPathRequestMatcher("/admin/**")).hasRole("ADMIN")
-                        .requestMatchers(new AntPathRequestMatcher("/user/**")).hasAnyRole("USER", "ADMIN")
-
+                        .requestMatchers("/css/**","/js/**","/images/**","/webjars/**","/login").permitAll()
+                        .requestMatchers("/admin").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/user", "/api/user/current").authenticated()
                         .anyRequest().authenticated()
                 )
-
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .successHandler(successUserHandler)
-                        .permitAll()
+                .formLogin(f -> f
+                        .loginPage("/login").permitAll()
+                        .successHandler((req, res, authn) -> {
+                            boolean isAdmin = authn.getAuthorities().stream()
+                                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                            res.sendRedirect(isAdmin ? "/admin" : "/user");
+                        })
                 )
-
-                .logout(l -> l
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login")
-                )
-
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((req, res, e) ->
-                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
-                        .accessDeniedHandler((req, res, e) ->
-                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
-                )
-
-                // важно зарегистрировать провайдера
-                .authenticationProvider(authProvider);
-
+                .logout(l -> l.logoutUrl("/logout").logoutSuccessUrl("/login?logout").permitAll());
         return http.build();
     }
 }
+
